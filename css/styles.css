@@ -3,7 +3,7 @@
   --card: #ffffff;
   --text: #1f2937;
   --muted: #6b7280;
-  --border: #e5e7eb;
+  --border: #d1d5db;
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
   --danger: #dc2626;
@@ -112,11 +112,26 @@ textarea {
   border-radius: 6px;
   font-size: 0.95rem;
   font-family: inherit;
-  background: #fff;
-  color: var(--text);
+  /* Slightly off-white so the field is distinct from the card background */
+  background: #f8fafc;
+  color: #111827;
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
+}
+
+/* Explicit placeholder colour — darker than browser default for legibility */
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280;
+  opacity: 1; /* Firefox reduces opacity by default */
+}
+
+/* White background when the user is actively typing */
+input:focus,
+select:focus,
+textarea:focus {
+  background: #fff;
 }
 
 input:focus,
@@ -336,6 +351,53 @@ button {
   color: var(--danger);
   font-size: 0.8rem;
   margin-top: 0.2rem;
+}
+
+/* Inline per-field validation */
+.field-hint {
+  display: none;
+  color: var(--danger);
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+  line-height: 1.35;
+}
+.field-hint.show {
+  display: block;
+}
+.field-hint::before {
+  content: "⚠ ";
+  font-weight: 600;
+}
+input.is-invalid,
+select.is-invalid,
+textarea.is-invalid {
+  border-color: var(--danger);
+  background: #fef2f2;
+  box-shadow: 0 0 0 1px var(--danger) inset;
+}
+input.is-invalid:focus,
+select.is-invalid:focus,
+textarea.is-invalid:focus {
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
+}
+/* Don't draw error styling on inputs the user hasn't interacted with yet */
+input.is-invalid:placeholder-shown:not(.touched),
+textarea.is-invalid:placeholder-shown:not(.touched) {
+  border-color: var(--border);
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  input.is-invalid,
+  select.is-invalid,
+  textarea.is-invalid {
+    background: #2a1212;
+  }
+  .field-hint {
+    color: #fca5a5;
+  }
 }
 
 /* Preview */
@@ -772,6 +834,11 @@ button:focus-visible,
   textarea {
     background: #11141a;
     color: var(--text);
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
+    opacity: 1;
   }
   .actions-card {
     background: rgba(24, 27, 34, 0.97);

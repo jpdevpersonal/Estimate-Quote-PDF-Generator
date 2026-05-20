@@ -56,6 +56,9 @@
           tr.querySelectorAll("input").forEach((i) =>
             i.addEventListener("input", update),
           );
+          // Inline validation (defined later in file; guard for first call before it exists)
+          if (typeof wireLineItemValidation === "function")
+            wireLineItemValidation(tr);
           update();
         }
 
@@ -258,6 +261,9 @@
               state.logoHeight = height;
               $("logoPreviewImg").src = state.logoDataUrl;
               $("logoPreview").style.display = "flex";
+              // Logo satisfies the "company name OR logo" rule — re-check bizName
+              if (typeof reRunBizNameIfTouched === "function")
+                reRunBizNameIfTouched();
               update();
             };
             img.onerror = () => {
@@ -275,44 +281,299 @@
           state.logoHeight = 0;
           $("logoFile").value = "";
           $("logoPreview").style.display = "none";
+          // Removing the logo may re-introduce the bizName requirement
+          if (typeof reRunBizNameIfTouched === "function")
+            reRunBizNameIfTouched();
           update();
         });
 
         // ---------- Validation ----------
+        // Lightweight, dependency-free inline validation.
+        //   • Each field has a validator returning a friendly message or "" if valid.
+        //   • Fields are marked "touched" on first blur; only touched fields show errors
+        //     so users aren't yelled at while they're still typing the very first character.
+        //   • Once touched, validation re-runs on every input so corrections feel instant.
+        //   • Submit forces every field to be touched and scrolls to the first problem.
+
+        const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+        const RE_URL = /^(https?:\/\/)?[\w-]+(\.[\w-]+)+([/?#].*)?$/i;
+        const RE_PHONE = /^[+\d][\d\s\-().]{5,}$/; // at least 6 chars, digit-ish
+
+        // Per-field validators. Each returns "" when valid, or a short message.
+        const fieldValidators = {
+          bizName: (v) =>
+            !v.trim() && !state.logoDataUrl
+              ? "Enter a company name (or upload a logo)."
+              : "",
+          bizEmail: (v) =>
+            v.trim() && !RE_EMAIL.test(v.trim())
+              ? "Enter a valid email, e.g. hello@acme.co."
+              : "",
+          bizPhone: (v) =>
+            v.trim() && !RE_PHONE.test(v.trim())
+              ? "Enter a valid phone number."
+              : "",
+          bizWebsite: (v) =>
+            v.trim() && !RE_URL.test(v.trim())
+              ? "Enter a valid website, e.g. acme.co."
+              : "",
+          clientName: () => crossCheckClient(),
+          clientBiz: () => crossCheckClient(),
+          clientEmail: (v) =>
+            v.trim() && !RE_EMAIL.test(v.trim())
+              ? "Enter a valid email address."
+              : "",
+          docNumber: (v) =>
+            !v.trim() ? "Document number is required." : "",
+          issueDate: (v) => (!v ? "Pick an issue date." : ""),
+          expiryDate: (v) => {
+            if (!v) return "";
+            const issue = $("issueDate").value;
+            if (issue && v < issue) return "Valid-until date must be on or after the issue date.";
+            return "";
+          },
+          discount: (v) => {
+            const n = parseFloat(v);
+            if (v === "" || isNaN(n)) return "";
+            if (n < 0) return "Discount cannot be negative.";
+            if ($("discountType").value === "percent" && n > 100)
+              return "Percent discount cannot exceed 100%.";
+            return "";
+          },
+          taxRate: (v) => {
+            const n = parseFloat(v);
+            if (v === "" || isNaN(n)) return "";
+            if (n < 0) return "Tax rate cannot be negative.";
+            if (n > 100) return "Tax rate cannot exceed 100%.";
+            return "";
+          },
+          currency: (v) =>
+            !v.trim() ? "Enter a currency symbol (e.g. $, £, €)." : "",
+        };
+
+        // Either-or rule: at least one client identifier required.
+        function crossCheckClient() {
+          const name = $("clientName").value.trim();
+          const biz = $("clientBiz").value.trim();
+          return !name && !biz
+            ? "Enter a client name or client business name."
+            : "";
+        }
+
+        // Get-or-create a hint element directly after the input.
+        function getHintEl(input) {
+          let hint = input.parentElement.querySelector(
+            ":scope > .field-hint",
+          );
+          if (!hint) {
+            hint = document.createElement("div");
+            hint.className = "field-hint";
+            hint.id = input.id + "-hint";
+            input.setAttribute("aria-describedby", hint.id);
+            input.parentElement.appendChild(hint);
+          }
+          return hint;
+        }
+
+        function setFieldError(input, message) {
+          const hint = getHintEl(input);
+          if (message) {
+            input.classList.add("is-invalid");
+            input.setAttribute("aria-invalid", "true");
+            hint.textContent = message;
+            hint.classList.add("show");
+          } else {
+            input.classList.remove("is-invalid");
+            input.removeAttribute("aria-invalid");
+            hint.classList.remove("show");
+            hint.textContent = "";
+          }
+        }
+
+        function runFieldValidator(id) {
+          const input = $(id);
+          if (!input) return "";
+          const validator = fieldValidators[id];
+          if (!validator) return "";
+          const msg = validator(input.value);
+          // Only display errors after the field has been touched
+          if (input.classList.contains("touched")) {
+            setFieldError(input, msg);
+          }
+          return msg;
+        }
+
+        // Re-validate cross-field client rule on both inputs together
+        function reRunClientPair() {
+          ["clientName", "clientBiz"].forEach((id) => {
+            const input = $(id);
+            if (input.classList.contains("touched")) {
+              runFieldValidator(id);
+            }
+          });
+        }
+
+        // Wire blur (mark touched + validate) and input (re-validate if already touched)
+        Object.keys(fieldValidators).forEach((id) => {
+          const input = $(id);
+          if (!input) return;
+          input.addEventListener("blur", () => {
+            input.classList.add("touched");
+            runFieldValidator(id);
+            if (id === "clientName" || id === "clientBiz") reRunClientPair();
+          });
+          input.addEventListener("input", () => {
+            if (input.classList.contains("touched")) runFieldValidator(id);
+            if (id === "clientName" || id === "clientBiz") reRunClientPair();
+          });
+        });
+
+        // When issue date changes, re-validate expiry; also set min attr for native picker UI.
+        $("issueDate").addEventListener("change", () => {
+          $("expiryDate").min = $("issueDate").value || "";
+          if ($("expiryDate").classList.contains("touched"))
+            runFieldValidator("expiryDate");
+        });
+        // Initialise min on first load
+        $("expiryDate").min = $("issueDate").value || "";
+
+        // When discount type toggles, re-validate discount value
+        $("discountType").addEventListener("change", () => {
+          if ($("discount").classList.contains("touched"))
+            runFieldValidator("discount");
+        });
+
+        // Logo upload affects whether bizName is required
+        function reRunBizNameIfTouched() {
+          if ($("bizName").classList.contains("touched"))
+            runFieldValidator("bizName");
+        }
+
+        // Line-item validation (inline)
+        function validateLineItemRow(tr) {
+          const descEl = tr.querySelector(".li-desc");
+          const qtyEl = tr.querySelector(".li-qty");
+          const priceEl = tr.querySelector(".li-price");
+          const qty = parseFloat(qtyEl.value);
+          const price = parseFloat(priceEl.value);
+
+          // Qty: must be non-negative number if provided
+          if (qtyEl.classList.contains("touched")) {
+            setFieldError(
+              qtyEl,
+              qtyEl.value !== "" && (isNaN(qty) || qty < 0)
+                ? "Quantity must be 0 or more."
+                : "",
+            );
+          }
+          // Price: must be non-negative number if provided
+          if (priceEl.classList.contains("touched")) {
+            setFieldError(
+              priceEl,
+              priceEl.value !== "" && (isNaN(price) || price < 0)
+                ? "Price must be 0 or more."
+                : "",
+            );
+          }
+          // Description required if qty or price has a value
+          if (descEl.classList.contains("touched")) {
+            const hasNumbers = (qty > 0) || (price > 0);
+            setFieldError(
+              descEl,
+              hasNumbers && !descEl.value.trim()
+                ? "Add a description for this line item."
+                : "",
+            );
+          }
+        }
+
+        function wireLineItemValidation(tr) {
+          tr.querySelectorAll("input").forEach((input) => {
+            input.addEventListener("blur", () => {
+              input.classList.add("touched");
+              validateLineItemRow(tr);
+            });
+            input.addEventListener("input", () => {
+              if (input.classList.contains("touched"))
+                validateLineItemRow(tr);
+            });
+          });
+        }
+
+        // Aggregated form-level validation used on submit
         function validate() {
           const errors = [];
+          const seen = new Set();
+
+          // Force-touch every field so any latent error becomes visible
+          Object.keys(fieldValidators).forEach((id) => {
+            const input = $(id);
+            if (!input) return;
+            input.classList.add("touched");
+            const msg = fieldValidators[id](input.value);
+            setFieldError(input, msg);
+            if (msg && !seen.has(msg)) {
+              errors.push(msg);
+              seen.add(msg);
+            }
+          });
+
+          // Doc type sanity check
           const docType = document.querySelector(
             'input[name="docType"]:checked',
           );
-          if (!docType)
-            errors.push("Select a document type (Estimate or Quote).");
-          if (!$("bizName").value.trim() && !state.logoDataUrl) {
-            errors.push("Add a company name or upload a logo.");
-          }
-          if (!$("clientName").value.trim() && !$("clientBiz").value.trim()) {
-            errors.push("Add a client name or client business name.");
-          }
+          if (!docType) errors.push("Select a document type (Estimate or Quote).");
+
+          // Line items
           const t = calcTotals();
-          const validItems = t.items.filter((i) => i.desc && i.qty > 0);
-          if (validItems.length === 0) {
-            errors.push(
-              "Add at least one line item with a description and quantity.",
+          let hasValidItem = false;
+          document.querySelectorAll("#itemsBody tr").forEach((tr) => {
+            tr.querySelectorAll("input").forEach((i) =>
+              i.classList.add("touched"),
             );
+            validateLineItemRow(tr);
+            const desc = tr.querySelector(".li-desc").value.trim();
+            const qty = parseFloat(tr.querySelector(".li-qty").value) || 0;
+            if (desc && qty > 0) hasValidItem = true;
+          });
+          if (!hasValidItem) {
+            const msg =
+              "Add at least one line item with a description and a quantity greater than 0.";
+            if (!seen.has(msg)) errors.push(msg);
           }
           return errors;
         }
+
 
         // ---------- PDF generation ----------
         $("downloadBtn").addEventListener("click", () => {
           const errEl = $("validationError");
           const errors = validate();
           if (errors.length) {
+            const heading =
+              errors.length === 1
+                ? "Please fix this before downloading:"
+                : `Please fix the following ${errors.length} issues before downloading:`;
             errEl.innerHTML =
-              "<strong>Please fix the following:</strong><ul>" +
+              `<strong>${heading}</strong><ul>` +
               errors.map((e) => `<li>${escapeHtml(e)}</li>`).join("") +
               "</ul>";
             errEl.style.display = "block";
-            errEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            errEl.setAttribute("role", "alert");
+            // Jump to the first invalid input for fast correction
+            const firstInvalid = document.querySelector(
+              "#itemsBody input.is-invalid, input.is-invalid, select.is-invalid, textarea.is-invalid",
+            );
+            if (firstInvalid) {
+              firstInvalid.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+              // Delay focus so the scroll animation can settle
+              setTimeout(() => firstInvalid.focus({ preventScroll: true }), 350);
+            } else {
+              errEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
             return;
           }
           errEl.style.display = "none";
@@ -622,6 +883,13 @@
           $("logoPreview").style.display = "none";
           $("logoError").style.display = "none";
           $("validationError").style.display = "none";
+          // Clear all per-field validation state
+          document
+            .querySelectorAll(".is-invalid, .touched")
+            .forEach((el) => el.classList.remove("is-invalid", "touched"));
+          document
+            .querySelectorAll(".field-hint.show")
+            .forEach((el) => el.classList.remove("show"));
           // Items
           $("itemsBody").innerHTML = "";
           addRow();
