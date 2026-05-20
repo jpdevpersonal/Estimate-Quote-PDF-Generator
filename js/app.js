@@ -42,11 +42,11 @@
         function addRow(desc = "", qty = 1, price = 0) {
           const tr = document.createElement("tr");
           tr.innerHTML = `
-      <td><input type="text" class="li-desc" placeholder="Item or service" value="${escapeHtml(desc)}" /></td>
-      <td><input type="number" class="li-qty" min="0" step="any" value="${qty}" /></td>
-      <td><input type="number" class="li-price" min="0" step="0.01" value="${price}" /></td>
-      <td class="line-total">$0.00</td>
-      <td><button type="button" class="remove-row" title="Remove">×</button></td>
+      <td data-label="Description"><input type="text" class="li-desc" placeholder="Item or service" value="${escapeHtml(desc)}" /></td>
+      <td data-label="Qty"><input type="number" class="li-qty" min="0" step="any" inputmode="decimal" value="${qty}" /></td>
+      <td data-label="Unit price"><input type="number" class="li-price" min="0" step="0.01" inputmode="decimal" value="${price}" /></td>
+      <td class="line-total" data-label="Total">$0.00</td>
+      <td class="row-actions"><button type="button" class="remove-row" aria-label="Remove line item" title="Remove">×</button></td>
     `;
           $("itemsBody").appendChild(tr);
           tr.querySelector(".remove-row").addEventListener("click", () => {
@@ -626,6 +626,15 @@
           $("itemsBody").innerHTML = "";
           addRow();
         });
+
+        // ---------- Mobile: scroll to preview ----------
+        const previewJump = $("previewJump");
+        if (previewJump) {
+          previewJump.addEventListener("click", () => {
+            const el = document.getElementById("preview");
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+        }
 
         // First render
         update();
