@@ -1,0 +1,1408 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Estimate & Quote PDF Generator — Simple Biz Toolkit</title>
+    <meta
+      name="description"
+      content="Create a professional estimate or quote and download it as a PDF. Runs entirely in your browser — nothing is uploaded or stored."
+    />
+    <!-- jsPDF (client-side PDF generation) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+      :root {
+        --bg: #f5f7fa;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --danger: #dc2626;
+        --success: #059669;
+        --accent: #f3f4f6;
+        --radius: 10px;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+
+      header.site-header {
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        padding: 1rem 1.25rem;
+      }
+      header.site-header h1 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      header.site-header p {
+        margin: 0.15rem 0 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1.25rem;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+      }
+
+      @media (min-width: 1024px) {
+        .container {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.25rem;
+        box-shadow: var(--shadow);
+      }
+
+      .card h2 {
+        margin: 0 0 1rem;
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--text);
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+      }
+      @media (min-width: 600px) {
+        .form-row.two {
+          grid-template-columns: 1fr 1fr;
+        }
+        .form-row.three {
+          grid-template-columns: 1fr 1fr 1fr;
+        }
+      }
+
+      label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text);
+        margin-bottom: 0.25rem;
+      }
+
+      input[type="text"],
+      input[type="email"],
+      input[type="number"],
+      input[type="date"],
+      input[type="url"],
+      input[type="tel"],
+      select,
+      textarea {
+        width: 100%;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 0.95rem;
+        font-family: inherit;
+        background: #fff;
+        color: var(--text);
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 70px;
+      }
+
+      .doc-type {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .doc-type label {
+        flex: 1 1 120px;
+        padding: 0.6rem 0.8rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        cursor: pointer;
+        text-align: center;
+        font-weight: 500;
+        margin: 0;
+        transition: all 0.15s;
+      }
+      .doc-type input {
+        display: none;
+      }
+      .doc-type input:checked + span {
+        color: var(--primary);
+      }
+      .doc-type label:has(input:checked) {
+        border-color: var(--primary);
+        background: rgba(37, 99, 235, 0.05);
+      }
+
+      .privacy-note {
+        font-size: 0.8rem;
+        color: var(--muted);
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #166534;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        margin-top: 0.5rem;
+      }
+
+      .logo-preview {
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .logo-preview img {
+        max-width: 100px;
+        max-height: 60px;
+        object-fit: contain;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: #fff;
+        padding: 4px;
+      }
+      .logo-remove {
+        font-size: 0.8rem;
+        color: var(--danger);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.25rem 0.5rem;
+      }
+      .logo-remove:hover {
+        text-decoration: underline;
+      }
+
+      /* Line items table */
+      .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      .items-table th {
+        text-align: left;
+        padding: 0.4rem 0.4rem;
+        font-weight: 500;
+        color: var(--muted);
+        border-bottom: 1px solid var(--border);
+        font-size: 0.8rem;
+      }
+      .items-table td {
+        padding: 0.35rem 0.25rem;
+        vertical-align: top;
+      }
+      .items-table input {
+        padding: 0.45rem 0.55rem;
+        font-size: 0.9rem;
+      }
+      .items-table .line-total {
+        padding: 0.55rem 0.5rem;
+        color: var(--text);
+        font-weight: 500;
+        text-align: right;
+        white-space: nowrap;
+      }
+      .remove-row {
+        background: none;
+        border: none;
+        color: var(--danger);
+        cursor: pointer;
+        font-size: 1.2rem;
+        padding: 0.25rem 0.5rem;
+        line-height: 1;
+      }
+      .remove-row:hover {
+        color: #991b1b;
+      }
+
+      .items-mobile-wrap {
+        overflow-x: auto;
+      }
+
+      /* Buttons */
+      button {
+        font-family: inherit;
+        cursor: pointer;
+      }
+      .btn {
+        padding: 0.6rem 1rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        border: 1px solid transparent;
+        transition: all 0.15s;
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: var(--primary-hover);
+      }
+      .btn-secondary {
+        background: #fff;
+        color: var(--text);
+        border-color: var(--border);
+      }
+      .btn-secondary:hover {
+        background: var(--accent);
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--primary);
+        border: 1px dashed var(--border);
+        padding: 0.5rem 0.8rem;
+      }
+      .btn-ghost:hover {
+        background: var(--accent);
+      }
+
+      .totals {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        margin-top: 1rem;
+      }
+      @media (min-width: 500px) {
+        .totals {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .totals-summary {
+        background: var(--accent);
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+      }
+      .totals-summary div {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.2rem 0;
+      }
+      .totals-summary .grand {
+        font-weight: 700;
+        font-size: 1.05rem;
+        border-top: 1px solid var(--border);
+        margin-top: 0.4rem;
+        padding-top: 0.5rem;
+      }
+
+      .actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+      }
+
+      /* Validation */
+      .error-msg {
+        color: var(--danger);
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 6px;
+      }
+      .error-msg ul {
+        margin: 0.25rem 0 0;
+        padding-left: 1.25rem;
+      }
+      .field-error {
+        color: var(--danger);
+        font-size: 0.8rem;
+        margin-top: 0.2rem;
+      }
+
+      /* Preview */
+      .preview-wrap {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #f9fafb;
+        padding: 1rem;
+      }
+      .preview-doc {
+        background: #fff;
+        padding: 1.75rem;
+        font-size: 0.85rem;
+        color: #111827;
+        min-height: 400px;
+        border-radius: 4px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+      }
+      .preview-doc h3 {
+        margin: 0 0 0.25rem;
+        font-size: 1.5rem;
+        letter-spacing: 0.05em;
+      }
+      .preview-doc .pd-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+      }
+      .preview-doc .pd-header.right-logo {
+        flex-direction: row-reverse;
+      }
+      .preview-doc .pd-logo img {
+        max-width: 140px;
+        max-height: 70px;
+        object-fit: contain;
+      }
+      .preview-doc .pd-business {
+        font-size: 0.8rem;
+        color: #374151;
+      }
+      .preview-doc .pd-business strong {
+        font-size: 1rem;
+        color: #111827;
+        display: block;
+        margin-bottom: 0.2rem;
+      }
+      .preview-doc .pd-meta {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        font-size: 0.78rem;
+      }
+      .preview-doc .pd-meta div {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.1rem 0;
+      }
+      .preview-doc .pd-client {
+        margin-bottom: 1rem;
+        font-size: 0.8rem;
+      }
+      .preview-doc .pd-client .label {
+        color: #6b7280;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.2rem;
+      }
+      .preview-doc table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+        font-size: 0.8rem;
+      }
+      .preview-doc table th {
+        background: #f3f4f6;
+        padding: 0.5rem;
+        text-align: left;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        color: #6b7280;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .preview-doc table td {
+        padding: 0.5rem;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      .preview-doc table td.num {
+        text-align: right;
+        white-space: nowrap;
+      }
+      .preview-doc .pd-totals {
+        margin-left: auto;
+        width: 100%;
+        max-width: 280px;
+        font-size: 0.85rem;
+      }
+      .preview-doc .pd-totals div {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.25rem 0;
+      }
+      .preview-doc .pd-totals .grand {
+        border-top: 2px solid #111827;
+        margin-top: 0.4rem;
+        padding-top: 0.5rem;
+        font-weight: 700;
+        font-size: 1rem;
+      }
+      .preview-doc .pd-notes {
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e5e7eb;
+        font-size: 0.78rem;
+        color: #374151;
+        white-space: pre-wrap;
+      }
+      .preview-doc .pd-notes .label {
+        text-transform: uppercase;
+        color: #6b7280;
+        font-size: 0.7rem;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.3rem;
+      }
+
+      .small-muted {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      /* Sticky preview on desktop */
+      @media (min-width: 1024px) {
+        .preview-col {
+          position: sticky;
+          top: 1rem;
+          align-self: start;
+          max-height: calc(100vh - 2rem);
+          overflow-y: auto;
+        }
+      }
+
+      footer {
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.8rem;
+        padding: 1.5rem 1rem 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>Estimate & Quote PDF Generator</h1>
+      <p>Part of the Simple Biz Toolkit — runs entirely in your browser.</p>
+    </header>
+
+    <div class="container">
+      <!-- ============ FORM COLUMN ============ -->
+      <div class="form-col">
+        <!-- Document type -->
+        <section class="card">
+          <h2>Document Type</h2>
+          <div class="doc-type" id="docType">
+            <label
+              ><input
+                type="radio"
+                name="docType"
+                value="Estimate"
+                checked
+              /><span>Estimate</span></label
+            >
+            <label
+              ><input type="radio" name="docType" value="Quote" /><span
+                >Quote</span
+              ></label
+            >
+          </div>
+        </section>
+
+        <!-- Business details -->
+        <section class="card">
+          <h2>Your Business Details</h2>
+          <div class="form-row two">
+            <div>
+              <label for="bizName">Company name *</label>
+              <input type="text" id="bizName" placeholder="Acme Co." />
+            </div>
+            <div>
+              <label for="bizEmail">Email</label>
+              <input type="email" id="bizEmail" placeholder="hello@acme.co" />
+            </div>
+          </div>
+          <div class="form-row two">
+            <div>
+              <label for="bizPhone">Phone</label>
+              <input type="tel" id="bizPhone" placeholder="+1 555 000 1234" />
+            </div>
+            <div>
+              <label for="bizWebsite">Website</label>
+              <input type="url" id="bizWebsite" placeholder="acme.co" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="bizAddress">Address</label>
+              <textarea
+                id="bizAddress"
+                placeholder="Street, City, ZIP, Country"
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="form-row two">
+            <div>
+              <label for="logoFile">Logo (optional)</label>
+              <input
+                type="file"
+                id="logoFile"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+              />
+              <div
+                id="logoError"
+                class="field-error"
+                style="display: none"
+              ></div>
+              <div class="logo-preview" id="logoPreview" style="display: none">
+                <img id="logoPreviewImg" alt="Logo preview" />
+                <button type="button" class="logo-remove" id="logoRemove">
+                  Remove
+                </button>
+              </div>
+            </div>
+            <div>
+              <label for="logoPos">Logo position</label>
+              <select id="logoPos">
+                <option value="left">Top left</option>
+                <option value="right">Top right</option>
+              </select>
+            </div>
+          </div>
+          <div class="privacy-note">
+            🔒 Processed locally in your browser — nothing is uploaded or
+            stored.
+          </div>
+        </section>
+
+        <!-- Client details -->
+        <section class="card">
+          <h2>Client Details</h2>
+          <div class="form-row two">
+            <div>
+              <label for="clientName">Client name *</label>
+              <input type="text" id="clientName" placeholder="Jane Smith" />
+            </div>
+            <div>
+              <label for="clientBiz">Client business name *</label>
+              <input type="text" id="clientBiz" placeholder="Smith & Co." />
+            </div>
+          </div>
+          <div class="form-row two">
+            <div>
+              <label for="clientEmail">Client email</label>
+              <input
+                type="email"
+                id="clientEmail"
+                placeholder="jane@example.com"
+              />
+            </div>
+            <div>
+              <label for="clientAddress">Client address</label>
+              <textarea
+                id="clientAddress"
+                placeholder="Street, City, ZIP"
+              ></textarea>
+            </div>
+          </div>
+          <p class="small-muted">
+            * Either client name or business name is required.
+          </p>
+        </section>
+
+        <!-- Document details -->
+        <section class="card">
+          <h2>Document Details</h2>
+          <div class="form-row three">
+            <div>
+              <label for="docNumber">Document number</label>
+              <input type="text" id="docNumber" value="001" />
+            </div>
+            <div>
+              <label for="issueDate">Issue date</label>
+              <input type="date" id="issueDate" />
+            </div>
+            <div>
+              <label for="expiryDate">Valid until</label>
+              <input type="date" id="expiryDate" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="projectTitle">Project / job title</label>
+              <input
+                type="text"
+                id="projectTitle"
+                placeholder="Kitchen renovation"
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="notes">Notes / terms</label>
+              <textarea
+                id="notes"
+                placeholder="Payment due within 14 days of acceptance."
+              ></textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- Line items -->
+        <section class="card">
+          <h2>Line Items</h2>
+          <div class="items-mobile-wrap">
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th style="width: 45%">Description</th>
+                  <th style="width: 15%">Qty</th>
+                  <th style="width: 20%">Unit price</th>
+                  <th style="width: 15%; text-align: right">Total</th>
+                  <th style="width: 5%"></th>
+                </tr>
+              </thead>
+              <tbody id="itemsBody"></tbody>
+            </table>
+          </div>
+          <button
+            type="button"
+            class="btn btn-ghost"
+            id="addRowBtn"
+            style="margin-top: 0.5rem"
+          >
+            + Add line item
+          </button>
+
+          <div class="totals">
+            <div>
+              <div class="form-row two">
+                <div>
+                  <label for="discount">Discount</label>
+                  <input
+                    type="number"
+                    id="discount"
+                    min="0"
+                    step="0.01"
+                    value="0"
+                  />
+                </div>
+                <div>
+                  <label for="discountType">Type</label>
+                  <select id="discountType">
+                    <option value="amount">Fixed amount</option>
+                    <option value="percent">Percent (%)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row two">
+                <div>
+                  <label for="taxRate">Tax / VAT (%)</label>
+                  <input
+                    type="number"
+                    id="taxRate"
+                    min="0"
+                    step="0.01"
+                    value="0"
+                  />
+                </div>
+                <div>
+                  <label for="currency">Currency symbol</label>
+                  <input type="text" id="currency" value="$" maxlength="3" />
+                </div>
+              </div>
+            </div>
+            <div class="totals-summary" id="totalsSummary">
+              <div>
+                <span>Subtotal</span><span id="sumSubtotal">$0.00</span>
+              </div>
+              <div>
+                <span>Discount</span><span id="sumDiscount">-$0.00</span>
+              </div>
+              <div><span>Tax</span><span id="sumTax">$0.00</span></div>
+              <div class="grand">
+                <span>Grand total</span><span id="sumGrand">$0.00</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Actions -->
+        <section class="card">
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="downloadBtn">
+              ⬇ Download PDF
+            </button>
+            <button type="button" class="btn btn-secondary" id="resetBtn">
+              Reset form
+            </button>
+          </div>
+          <div
+            id="validationError"
+            class="error-msg"
+            style="display: none"
+          ></div>
+        </section>
+      </div>
+
+      <!-- ============ PREVIEW COLUMN ============ -->
+      <div class="preview-col">
+        <section class="card">
+          <h2>Live Preview</h2>
+          <div class="preview-wrap">
+            <div class="preview-doc" id="preview"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <footer>
+      Simple Biz Toolkit · Built for small businesses, freelancers & trades.
+    </footer>
+
+    <script>
+      (() => {
+        "use strict";
+
+        // ---------- State ----------
+        const state = {
+          logoDataUrl: null,
+          logoWidth: 0,
+          logoHeight: 0,
+        };
+
+        const MAX_LOGO_BYTES = 3 * 1024 * 1024; // 3MB
+        const MAX_LOGO_DIM = 400; // resize logo to max 400px on the largest side
+
+        // ---------- Utilities ----------
+        const $ = (id) => document.getElementById(id);
+        const fmt = (n) => {
+          const cur = $("currency").value || "";
+          const val = (isFinite(n) ? n : 0).toFixed(2);
+          return cur + val;
+        };
+        const todayISO = () => new Date().toISOString().slice(0, 10);
+        const escapeHtml = (s) =>
+          String(s ?? "").replace(
+            /[&<>"']/g,
+            (c) =>
+              ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+              })[c],
+          );
+
+        // ---------- Init defaults ----------
+        $("issueDate").value = todayISO();
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        $("expiryDate").value = d.toISOString().slice(0, 10);
+
+        // ---------- Line items ----------
+        function addRow(desc = "", qty = 1, price = 0) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+      <td><input type="text" class="li-desc" placeholder="Item or service" value="${escapeHtml(desc)}" /></td>
+      <td><input type="number" class="li-qty" min="0" step="any" value="${qty}" /></td>
+      <td><input type="number" class="li-price" min="0" step="0.01" value="${price}" /></td>
+      <td class="line-total">$0.00</td>
+      <td><button type="button" class="remove-row" title="Remove">×</button></td>
+    `;
+          $("itemsBody").appendChild(tr);
+          tr.querySelector(".remove-row").addEventListener("click", () => {
+            tr.remove();
+            update();
+          });
+          tr.querySelectorAll("input").forEach((i) =>
+            i.addEventListener("input", update),
+          );
+          update();
+        }
+
+        $("addRowBtn").addEventListener("click", () => addRow());
+        // Start with one empty row
+        addRow();
+
+        // ---------- Totals calculation ----------
+        function calcTotals() {
+          const rows = [...document.querySelectorAll("#itemsBody tr")];
+          let subtotal = 0;
+          const items = rows.map((tr) => {
+            const desc = tr.querySelector(".li-desc").value.trim();
+            const qty = parseFloat(tr.querySelector(".li-qty").value) || 0;
+            const price = parseFloat(tr.querySelector(".li-price").value) || 0;
+            const total = qty * price;
+            tr.querySelector(".line-total").textContent = fmt(total);
+            subtotal += total;
+            return { desc, qty, price, total };
+          });
+
+          const discountVal = parseFloat($("discount").value) || 0;
+          const discountType = $("discountType").value;
+          const discount =
+            discountType === "percent"
+              ? subtotal * (discountVal / 100)
+              : discountVal;
+          const afterDiscount = Math.max(0, subtotal - discount);
+          const taxRate = parseFloat($("taxRate").value) || 0;
+          const tax = afterDiscount * (taxRate / 100);
+          const grand = afterDiscount + tax;
+
+          return { items, subtotal, discount, tax, grand, taxRate };
+        }
+
+        // ---------- Update preview & totals ----------
+        function update() {
+          const t = calcTotals();
+          $("sumSubtotal").textContent = fmt(t.subtotal);
+          $("sumDiscount").textContent = "-" + fmt(t.discount);
+          $("sumTax").textContent = fmt(t.tax);
+          $("sumGrand").textContent = fmt(t.grand);
+          renderPreview(t);
+        }
+
+        // ---------- Preview render ----------
+        function renderPreview(t) {
+          const docType = document.querySelector(
+            'input[name="docType"]:checked',
+          ).value;
+          const logoPos = $("logoPos").value;
+          const logoHtml = state.logoDataUrl
+            ? `<div class="pd-logo"><img src="${state.logoDataUrl}" alt="Logo"/></div>`
+            : "";
+          const businessName = $("bizName").value.trim();
+          const businessLines = [
+            $("bizAddress").value,
+            $("bizEmail").value,
+            $("bizPhone").value,
+            $("bizWebsite").value,
+          ]
+            .filter(Boolean)
+            .map(escapeHtml)
+            .join("<br/>");
+
+          const clientName = $("clientName").value.trim();
+          const clientBiz = $("clientBiz").value.trim();
+          const clientAddr = $("clientAddress").value.trim();
+          const clientEmail = $("clientEmail").value.trim();
+
+          const rowsHtml =
+            t.items
+              .filter((i) => i.desc || i.qty || i.price)
+              .map(
+                (i) => `
+      <tr>
+        <td>${escapeHtml(i.desc)}</td>
+        <td class="num">${i.qty}</td>
+        <td class="num">${fmt(i.price)}</td>
+        <td class="num">${fmt(i.total)}</td>
+      </tr>
+    `,
+              )
+              .join("") ||
+            `<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:1rem;">No line items yet</td></tr>`;
+
+          const notes = $("notes").value.trim();
+
+          $("preview").innerHTML = `
+      <div class="pd-header ${logoPos === "right" ? "right-logo" : ""}">
+        ${logoHtml || `<div class="pd-business"><strong>${escapeHtml(businessName) || "Your Company"}</strong>${businessLines ? "<br/>" + businessLines : ""}</div>`}
+        <div style="text-align:right;">
+          <h3>${escapeHtml(docType).toUpperCase()}</h3>
+          <div class="pd-meta" style="margin-top:0.5rem; text-align:left;">
+            <div><span>Number:</span><strong>${escapeHtml($("docNumber").value)}</strong></div>
+            <div><span>Issued:</span><strong>${escapeHtml($("issueDate").value)}</strong></div>
+            <div><span>Valid until:</span><strong>${escapeHtml($("expiryDate").value)}</strong></div>
+          </div>
+        </div>
+      </div>
+
+      ${state.logoDataUrl && businessName ? `<div class="pd-business" style="margin-bottom:1rem;"><strong>${escapeHtml(businessName)}</strong>${businessLines ? "<br/>" + businessLines : ""}</div>` : ""}
+
+      <div class="pd-client">
+        <div class="label">Bill to</div>
+        ${clientBiz ? `<strong>${escapeHtml(clientBiz)}</strong><br/>` : ""}
+        ${clientName ? escapeHtml(clientName) + "<br/>" : ""}
+        ${clientAddr ? escapeHtml(clientAddr).replace(/\n/g, "<br/>") + "<br/>" : ""}
+        ${clientEmail ? escapeHtml(clientEmail) : ""}
+      </div>
+
+      ${$("projectTitle").value ? `<div style="margin-bottom:0.5rem;"><strong>Project:</strong> ${escapeHtml($("projectTitle").value)}</div>` : ""}
+
+      <table>
+        <thead>
+          <tr><th>Description</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Unit price</th><th style="text-align:right;">Total</th></tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+
+      <div class="pd-totals">
+        <div><span>Subtotal</span><span>${fmt(t.subtotal)}</span></div>
+        ${t.discount > 0 ? `<div><span>Discount</span><span>-${fmt(t.discount)}</span></div>` : ""}
+        ${t.taxRate > 0 ? `<div><span>Tax (${t.taxRate}%)</span><span>${fmt(t.tax)}</span></div>` : ""}
+        <div class="grand"><span>Total</span><span>${fmt(t.grand)}</span></div>
+      </div>
+
+      ${notes ? `<div class="pd-notes"><div class="label">Notes / Terms</div>${escapeHtml(notes)}</div>` : ""}
+    `;
+        }
+
+        // ---------- Bind live update to all relevant inputs ----------
+        const liveInputs = [
+          "bizName",
+          "bizEmail",
+          "bizPhone",
+          "bizWebsite",
+          "bizAddress",
+          "clientName",
+          "clientBiz",
+          "clientEmail",
+          "clientAddress",
+          "docNumber",
+          "issueDate",
+          "expiryDate",
+          "projectTitle",
+          "notes",
+          "discount",
+          "discountType",
+          "taxRate",
+          "currency",
+          "logoPos",
+        ];
+        liveInputs.forEach((id) => $(id).addEventListener("input", update));
+        document
+          .querySelectorAll('input[name="docType"]')
+          .forEach((r) => r.addEventListener("change", update));
+
+        // ---------- Logo upload (with size validation + canvas resize) ----------
+        $("logoFile").addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          const errEl = $("logoError");
+          errEl.style.display = "none";
+          if (!file) return;
+
+          if (!file.type.startsWith("image/")) {
+            errEl.textContent = "Please select a valid image file.";
+            errEl.style.display = "block";
+            e.target.value = "";
+            return;
+          }
+          if (file.size > MAX_LOGO_BYTES) {
+            errEl.textContent = `Logo is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum 3MB.`;
+            errEl.style.display = "block";
+            e.target.value = "";
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+              // Resize via canvas, maintaining aspect ratio
+              let { width, height } = img;
+              const ratio = Math.min(
+                MAX_LOGO_DIM / width,
+                MAX_LOGO_DIM / height,
+                1,
+              );
+              width = Math.round(width * ratio);
+              height = Math.round(height * ratio);
+              const canvas = document.createElement("canvas");
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0, width, height);
+              // Use PNG to preserve transparency for logos
+              state.logoDataUrl = canvas.toDataURL("image/png");
+              state.logoWidth = width;
+              state.logoHeight = height;
+              $("logoPreviewImg").src = state.logoDataUrl;
+              $("logoPreview").style.display = "flex";
+              update();
+            };
+            img.onerror = () => {
+              errEl.textContent = "Could not read this image file.";
+              errEl.style.display = "block";
+            };
+            img.src = ev.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+
+        $("logoRemove").addEventListener("click", () => {
+          state.logoDataUrl = null;
+          state.logoWidth = 0;
+          state.logoHeight = 0;
+          $("logoFile").value = "";
+          $("logoPreview").style.display = "none";
+          update();
+        });
+
+        // ---------- Validation ----------
+        function validate() {
+          const errors = [];
+          const docType = document.querySelector(
+            'input[name="docType"]:checked',
+          );
+          if (!docType)
+            errors.push("Select a document type (Estimate or Quote).");
+          if (!$("bizName").value.trim() && !state.logoDataUrl) {
+            errors.push("Add a company name or upload a logo.");
+          }
+          if (!$("clientName").value.trim() && !$("clientBiz").value.trim()) {
+            errors.push("Add a client name or client business name.");
+          }
+          const t = calcTotals();
+          const validItems = t.items.filter((i) => i.desc && i.qty > 0);
+          if (validItems.length === 0) {
+            errors.push(
+              "Add at least one line item with a description and quantity.",
+            );
+          }
+          return errors;
+        }
+
+        // ---------- PDF generation ----------
+        $("downloadBtn").addEventListener("click", () => {
+          const errEl = $("validationError");
+          const errors = validate();
+          if (errors.length) {
+            errEl.innerHTML =
+              "<strong>Please fix the following:</strong><ul>" +
+              errors.map((e) => `<li>${escapeHtml(e)}</li>`).join("") +
+              "</ul>";
+            errEl.style.display = "block";
+            errEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+          }
+          errEl.style.display = "none";
+          generatePDF();
+        });
+
+        function generatePDF() {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF({ unit: "pt", format: "a4" });
+          const pageW = doc.internal.pageSize.getWidth();
+          const pageH = doc.internal.pageSize.getHeight();
+          const margin = 40;
+          let y = margin;
+
+          const docType = document.querySelector(
+            'input[name="docType"]:checked',
+          ).value;
+          const logoPos = $("logoPos").value;
+          const businessName = $("bizName").value.trim();
+          const t = calcTotals();
+
+          // ----- Header: logo + doc title -----
+          const headerTop = y;
+          let logoBottom = y;
+
+          if (state.logoDataUrl) {
+            // Scale logo to max 120pt wide / 60pt tall while keeping aspect ratio
+            const maxW = 120,
+              maxH = 60;
+            const ratio = Math.min(
+              maxW / state.logoWidth,
+              maxH / state.logoHeight,
+            );
+            const w = state.logoWidth * ratio;
+            const h = state.logoHeight * ratio;
+            const x = logoPos === "right" ? pageW - margin - w : margin;
+            try {
+              doc.addImage(state.logoDataUrl, "PNG", x, y, w, h);
+              logoBottom = y + h;
+            } catch (err) {
+              console.warn("Logo render failed:", err);
+            }
+          }
+
+          // Doc type heading (opposite side of logo, or right if no logo)
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(22);
+          doc.setTextColor(17, 24, 39);
+          const titleText = docType.toUpperCase();
+          const titleX =
+            logoPos === "right" && state.logoDataUrl ? margin : pageW - margin;
+          const titleAlign =
+            logoPos === "right" && state.logoDataUrl ? "left" : "right";
+          doc.text(titleText, titleX, y + 20, { align: titleAlign });
+
+          // Doc meta lines under title
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(75, 85, 99);
+          const metaLines = [
+            `Number: ${$("docNumber").value}`,
+            `Issued: ${$("issueDate").value}`,
+            `Valid until: ${$("expiryDate").value}`,
+          ];
+          metaLines.forEach((l, i) => {
+            doc.text(l, titleX, y + 38 + i * 12, { align: titleAlign });
+          });
+
+          y = Math.max(logoBottom, y + 80) + 15;
+
+          // ----- Business details -----
+          if (
+            businessName ||
+            $("bizAddress").value ||
+            $("bizEmail").value ||
+            $("bizPhone").value ||
+            $("bizWebsite").value
+          ) {
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(11);
+            doc.setTextColor(17, 24, 39);
+            if (businessName) {
+              doc.text(businessName, margin, y);
+              y += 14;
+            }
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(75, 85, 99);
+            const bizLines = [
+              $("bizAddress").value,
+              $("bizEmail").value,
+              $("bizPhone").value,
+              $("bizWebsite").value,
+            ].filter(Boolean);
+            bizLines.forEach((line) => {
+              line.split("\n").forEach((seg) => {
+                doc.text(seg, margin, y);
+                y += 11;
+              });
+            });
+            y += 8;
+          }
+
+          // ----- Client / Bill To -----
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(8);
+          doc.setTextColor(107, 114, 128);
+          doc.text("BILL TO", margin, y);
+          y += 12;
+          doc.setFontSize(10);
+          doc.setTextColor(17, 24, 39);
+          if ($("clientBiz").value.trim()) {
+            doc.text($("clientBiz").value.trim(), margin, y);
+            y += 12;
+          }
+          doc.setFont("helvetica", "normal");
+          if ($("clientName").value.trim()) {
+            doc.text($("clientName").value.trim(), margin, y);
+            y += 11;
+          }
+          if ($("clientAddress").value.trim()) {
+            $("clientAddress")
+              .value.trim()
+              .split("\n")
+              .forEach((line) => {
+                doc.text(line, margin, y);
+                y += 11;
+              });
+          }
+          if ($("clientEmail").value.trim()) {
+            doc.text($("clientEmail").value.trim(), margin, y);
+            y += 11;
+          }
+          y += 8;
+
+          // ----- Project title -----
+          if ($("projectTitle").value.trim()) {
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.text(`Project: `, margin, y);
+            doc.setFont("helvetica", "normal");
+            doc.text($("projectTitle").value.trim(), margin + 45, y);
+            y += 18;
+          }
+
+          // ----- Line items table -----
+          const colX = {
+            desc: margin,
+            qty: pageW - margin - 270,
+            price: pageW - margin - 180,
+            total: pageW - margin,
+          };
+          const colW = {
+            desc: colX.qty - colX.desc - 10,
+          };
+
+          // Header row
+          doc.setFillColor(243, 244, 246);
+          doc.rect(margin, y - 12, pageW - margin * 2, 20, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(8);
+          doc.setTextColor(107, 114, 128);
+          doc.text("DESCRIPTION", colX.desc + 4, y);
+          doc.text("QTY", colX.qty, y, { align: "right" });
+          doc.text("UNIT PRICE", colX.price, y, { align: "right" });
+          doc.text("TOTAL", colX.total - 4, y, { align: "right" });
+          y += 12;
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(17, 24, 39);
+
+          const validItems = t.items.filter((i) => i.desc && i.qty > 0);
+          validItems.forEach((item) => {
+            const descLines = doc.splitTextToSize(item.desc, colW.desc);
+            const rowH = Math.max(14, descLines.length * 11 + 4);
+
+            // Page break if needed
+            if (y + rowH > pageH - margin - 100) {
+              doc.addPage();
+              y = margin;
+            }
+
+            doc.text(descLines, colX.desc + 4, y + 4);
+            doc.text(String(item.qty), colX.qty, y + 4, { align: "right" });
+            doc.text(fmt(item.price), colX.price, y + 4, { align: "right" });
+            doc.text(fmt(item.total), colX.total - 4, y + 4, {
+              align: "right",
+            });
+            y += rowH;
+            // Row divider
+            doc.setDrawColor(229, 231, 235);
+            doc.line(margin, y, pageW - margin, y);
+          });
+
+          y += 12;
+
+          // ----- Totals -----
+          const totalsX = pageW - margin - 180;
+          const totalsValueX = pageW - margin;
+
+          const drawTotalRow = (label, value, bold = false) => {
+            if (y > pageH - margin - 40) {
+              doc.addPage();
+              y = margin;
+            }
+            doc.setFont("helvetica", bold ? "bold" : "normal");
+            doc.setFontSize(bold ? 11 : 9);
+            doc.setTextColor(17, 24, 39);
+            doc.text(label, totalsX, y);
+            doc.text(value, totalsValueX, y, { align: "right" });
+            y += bold ? 16 : 13;
+          };
+
+          drawTotalRow("Subtotal", fmt(t.subtotal));
+          if (t.discount > 0) drawTotalRow("Discount", "-" + fmt(t.discount));
+          if (t.taxRate > 0) drawTotalRow(`Tax (${t.taxRate}%)`, fmt(t.tax));
+
+          doc.setDrawColor(17, 24, 39);
+          doc.setLineWidth(1);
+          doc.line(totalsX, y - 3, totalsValueX, y - 3);
+          y += 6;
+          drawTotalRow("TOTAL", fmt(t.grand), true);
+          doc.setLineWidth(0.2);
+
+          // ----- Notes -----
+          const notesVal = $("notes").value.trim();
+          if (notesVal) {
+            y += 10;
+            if (y > pageH - margin - 60) {
+              doc.addPage();
+              y = margin;
+            }
+            doc.setDrawColor(229, 231, 235);
+            doc.line(margin, y, pageW - margin, y);
+            y += 14;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(8);
+            doc.setTextColor(107, 114, 128);
+            doc.text("NOTES / TERMS", margin, y);
+            y += 12;
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(55, 65, 81);
+            const noteLines = doc.splitTextToSize(notesVal, pageW - margin * 2);
+            noteLines.forEach((line) => {
+              if (y > pageH - margin) {
+                doc.addPage();
+                y = margin;
+              }
+              doc.text(line, margin, y);
+              y += 11;
+            });
+          }
+
+          // ----- Filename -----
+          const num = ($("docNumber").value || "001").replace(
+            /[^a-zA-Z0-9\-_]/g,
+            "",
+          );
+          const filename = `${docType.toLowerCase()}-${num}.pdf`;
+          doc.save(filename);
+        }
+
+        // ---------- Reset ----------
+        $("resetBtn").addEventListener("click", () => {
+          if (!confirm("Reset the entire form? This cannot be undone.")) return;
+          // Clear text inputs
+          document
+            .querySelectorAll(
+              'input[type="text"], input[type="email"], input[type="tel"], input[type="url"], textarea',
+            )
+            .forEach((i) => {
+              i.value = "";
+            });
+          $("docNumber").value = "001";
+          $("currency").value = "$";
+          $("discount").value = "0";
+          $("taxRate").value = "0";
+          $("discountType").value = "amount";
+          $("logoPos").value = "left";
+          $("issueDate").value = todayISO();
+          const dd = new Date();
+          dd.setDate(dd.getDate() + 30);
+          $("expiryDate").value = dd.toISOString().slice(0, 10);
+          document.querySelector(
+            'input[name="docType"][value="Estimate"]',
+          ).checked = true;
+          // Logo
+          state.logoDataUrl = null;
+          $("logoFile").value = "";
+          $("logoPreview").style.display = "none";
+          $("logoError").style.display = "none";
+          $("validationError").style.display = "none";
+          // Items
+          $("itemsBody").innerHTML = "";
+          addRow();
+        });
+
+        // First render
+        update();
+      })();
+    </script>
+  </body>
+</html>
